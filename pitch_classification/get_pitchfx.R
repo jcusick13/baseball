@@ -45,3 +45,15 @@ keep.cols <- c("x", "y", "start_speed", "end_speed", "sz_top",
                "sz_bot", "pfx_x", "pfx_z", "break_length",
                "pitch_type", "type_confidence")
 p <- p[, keep.cols]
+
+# Plot by movement
+plot(x = p$pfx_x, 
+     y = p$pfx_z,
+     main = "Rick Porcello Pitch Movement - July 29, 2016",
+     xlab = "Horizontal Movement",
+     ylab = "Vertical Movement",
+     pch = (1:5)[as.factor(p$pitch_type)],
+     col = (1:5)[as.factor(p$pitch_type)]
+     )
+
+
