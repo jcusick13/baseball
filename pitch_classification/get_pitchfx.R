@@ -5,6 +5,7 @@ library(stringr)
 library(dplyr)
 library(lubridate)
 
+
 # 1. Find games Rick Porcello pitched in ---------------------------
 
 # Read retrosheet play by play data, subset to Porcello
@@ -21,7 +22,7 @@ porcello <-
     mutate(Date = ymd(str_sub(GAME_ID, 4, 11)))
 
 
-# loop through each row to identify top vs. bottom of inning
+# Loop through each row to identify top vs. bottom of inning
 half <- vector(mode = "character", length = nrow(porcello))
 for (i in 1:nrow(porcello)) {
     if (str_sub(porcello$GAME_ID[[i]], 0, 3) == "BOS") {
@@ -33,13 +34,28 @@ for (i in 1:nrow(porcello)) {
 porcello <- mutate(porcello, Half = half)
 
 
+
 # 2. Pull PitchFX data for the above games -----------------------
-fxdata <- scrape(start = as.character(porcello$Date[1]), 
-                 end = as.character(porcello$Date[1]))
-porcello.fx <- 
-    fxdata[["pitch"]] %>%
-    filter(str_detect(gameday_link, "bos")) %>%
-    filter(inning_side == porcello$Half[1] &
-               inning <= porcello$Inning[1]) %>%
-    select(x, y, start_speed, end_speed, sz_top, sz_bot,
-           pfx_x, pfx_z, break_length, pitch_type, type_confidence)
+
+daily_pitches <- function(day, half, max.inning) {
+    # Returns a single day of PitchFX data as a data frame
+    #
+    # day: gameday YYYY-MM-DD
+    # half: portion of the inning ("top" or "bottom")
+    # max.inning: latest inning the pitcher played
+    
+    fxdata <- scrape(start = as.character(day),
+                     end = as.character(day))
+    pitch.data <-
+        fxdata[["pitch"]] %>%
+        filter(str_detect(gameday_link, "bos")) %>%
+        filter(inning_side == half & inning <= max.inning) %>%
+        select(x, y, start_speed, end_speed, sz_top, sz_bot, 
+               pfx_x, pfx_z, break_length, pitch_type, type_confidence)
+}
+
+# Collect list of daily data frames
+days <- mapply(daily_pitches, day = porcello$Date, half = porcello$Half, 
+               max.inning = porcello$Inning, SIMPLIFY = FALSE)
+pitches <- bind_rows(days)
+write.csv(pitches, "./porcello_2016_pitches.csv")
