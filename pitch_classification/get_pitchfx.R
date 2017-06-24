@@ -5,7 +5,6 @@ library(stringr)
 library(dplyr)
 library(lubridate)
 
-
 # 1. Find games Rick Porcello pitched in ---------------------------
 
 # Read retrosheet play by play data, subset to Porcello
@@ -49,9 +48,7 @@ daily_pitches <- function(day, half, max.inning) {
     pitch.data <-
         fxdata[["pitch"]] %>%
         filter(str_detect(gameday_link, "bos")) %>%
-        filter(inning_side == half & inning <= max.inning) %>%
-        select(x, y, start_speed, end_speed, sz_top, sz_bot, 
-               pfx_x, pfx_z, break_length, pitch_type, type_confidence)
+        filter(inning_side == half & inning <= max.inning)
 }
 
 # Collect list of daily data frames
