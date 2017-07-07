@@ -37,7 +37,7 @@ facet <- ggplot(pitches, aes(x = pfx_x, y = pfx_z)) +
     labs(x = "Horizontal Movement", y = "Vertical Movement",
          color = "Speed")
  
-# Cluster analysis --------------------------
+# Cluster pitches --------------------------
 p <- select(pitches, start_speed, break_y, break_length, break_angle,
             pfx_x, pfx_z, Pitch, type_confidence) 
 clust <- Mclust(p[,c("start_speed", "break_y", "break_length", "break_angle")])
@@ -46,39 +46,53 @@ clust <- Mclust(p[,c("start_speed", "break_y", "break_length", "break_angle")])
 # Record BIC from EM algorithm
 clustBIC <- mclustBIC(p[, c("start_speed", "break_y", "break_length", "break_angle")])
 
-# Attach cluster membership/probability to each observation
+
+# Cluster analysis -------------------------
+
+# Attach cluster membership and probability to each observation
 p$cclass <- clust$class
 cProb <- data.frame(clust$z)
 p <- bind_cols(p, cProb)
 
-# Compare cluster class to MLB class, create normalized counts by cluster
-classct <- 
+# Compare cluster class to MLB class
+classes <- 
     as.data.frame(table(p$cclass, p$Pitch)) %>%
-    rename(cluster = Var1, mlb = Var2, count = Freq) %>%
+    rename(Cluster = Var1, mlb = Var2, count = Freq) %>%
     spread(mlb, count)
 
-# Create normalized matrix of cluster counts by row
-classct.norm <- data.frame(matrix(NA, nrow = nrow(classct), ncol = ncol(classct) - 1))
-for (i in 1:nrow(classct)) {
-    # Total pitches per cluster
-    total <- sum(classct[i,-1])
+# Create matrix of normalized MLB classes by each cluster
+classes.norm <- data.frame(matrix(NA, nrow = nrow(classes), ncol = ncol(classes) - 1))
+for (i in 1:nrow(classes)) {
+    # Total pitch count per cluster
+    total <- sum(classes[i,-1])
     
-    for (j in 2:ncol(classct)) {
-        # Normalize values within each row
-        classct.norm[i, j - 1] <- classct[i, j] / total
+    for (j in 2:ncol(classes)) {
+        # Normalize values within each row (cluster)
+        classes.norm[i, j - 1] <- classes[i, j] / total
     }
 }
 
-# Combine with original class counts, reform for plotting
-n <- bind_cols(classct, classct.norm) %>%
-    gather(`Changeup`, `Curveball`, `Four-seam Fastball`, `Slider`, `Two-seam Fastball`,
-           key = "mlb", value = "count") %>%
-    gather(`X1`, `X2`, `X3`, `X4`, `X5`, key = normalized, value = "freq")
+# Rename columns and add cluster ID
+classes.norm <-
+    rename(classes.norm, "Changeup" = X1, "Curveball" = X2, 
+           "Four-seam Fastball" = X3, "Slider" = X4, "Two-seam Fastball" = X5) %>%
+    mutate(Cluster = as.factor(1:9))
 
-    
+# Reshape and combine raw and normalized pitch counts
+raw.count <- 
+    classes %>%
+    gather(`Changeup`, `Curveball`, `Four-seam Fastball`, `Slider`, 
+           `Two-seam Fastball`, key = "MLB", value = "Count")
+norm.count <-
+    classes.norm %>%
+    gather(`Changeup`, `Curveball`, `Four-seam Fastball`,
+           `Slider`, `Two-seam Fastball`, key = "MLB", value = "Frequency")
+
+combined <- inner_join(raw.count, norm.count, by = c("Cluster", "MLB"))
+
 # Plot classification table   
-ggplot(n, aes(x = mlb, y = cluster)) +
-    geom_tile(aes(fill = count)) +
+ggplot(combined, aes(x = MLB, y = Cluster)) +
+    geom_tile(aes(fill = Frequency)) +
     scale_fill_gradient(low = "red", high = "green")
 
 # Clusters by movement
