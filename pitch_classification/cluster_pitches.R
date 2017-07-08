@@ -23,6 +23,7 @@ pitches <-
 speed <- ggplot(pitches, aes(start_speed)) + 
     geom_density(aes(color = Pitch)) + 
     labs(x = "Speed", y = "Density")
+ggsave("./images/test.png")
  
 # Pitch movement by type
 type <- ggplot(pitches, aes(x = pfx_x, y = pfx_z)) +
@@ -93,7 +94,8 @@ combined <- inner_join(raw.count, norm.count, by = c("Cluster", "MLB"))
 # Plot classification table   
 ggplot(combined, aes(x = MLB, y = Cluster)) +
     geom_tile(aes(fill = Frequency)) +
-    scale_fill_gradient(low = "red", high = "green")
+    scale_fill_gradient(low = "lightblue", high = "darkblue") + 
+    labs(x = "", y = "Cluster")
 
 # Clusters by movement
 ggplot(p, aes(x = pfx_x, y = pfx_z)) +
