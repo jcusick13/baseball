@@ -28,3 +28,5 @@ The clustering was accomplished with use of the [MClust package](https://cran.r-
 </p>
 
 Comparing the frequency of pitch types per cluster, we can see that the clustering algorithm has a strong agreement with the MLB assigned pitch type for most clusters, though a few still have some relative uncertainty. Clusters 3, 4, and 5 unambiguously align with changeups, curveballs, and sliders, respectively. Four-seam fastballs are well defined in clusters 1, 8, and 9, but the clustering wasn't quite sure of how to handle two-seamers. While we can loosely define cluster 2 as general fastballs, we're unable to name cluster 7 for now because of the strong disagreement with the MLB pitch types. However, we can safely ignore this cluster since it contains only 45 pitches, which accounts for 1.3% of the total dataset. 
+
+All in all, the MClust package was pretty successful at creating a classification for Rick Porcello's pitches compared the MLB's official classifier. Possible extensions of this would be to have distinct clustering schemes for fastballs and for breaking balls. This could possibly help with differentiating between two and four seam fastballs.
