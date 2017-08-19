@@ -42,11 +42,11 @@ facet <- ggplot(pitches, aes(x = pfx_x, y = pfx_z)) +
 p <- select(pitches, start_speed, break_y, break_length, break_angle,
             pfx_x, pfx_z, Pitch, type_confidence) 
 clust <- Mclust(p[,c("start_speed", "break_y", "break_length", "break_angle")])
+summary(clust, parameters = TRUE)
 #> Best model : ellipsoidal, equal shape (VEV) with 9 components 
  
 # Record BIC from EM algorithm
 clustBIC <- mclustBIC(p[, c("start_speed", "break_y", "break_length", "break_angle")])
-
 
 # Cluster analysis -------------------------
 
@@ -60,6 +60,12 @@ classes <-
     as.data.frame(table(p$cclass, p$Pitch)) %>%
     rename(Cluster = Var1, mlb = Var2, count = Freq) %>%
     spread(mlb, count)
+
+# There's high disagreement in cluster 7 - how many pitches are actually in that cluster?
+ct7 <- filter(classes, Cluster == 7) %>%
+    select(-Cluster) %>%
+    rowSums()  # 42
+ct_all <- select(classes, -Cluster) %>% sum()  # 3484
 
 # Create matrix of normalized MLB classes by each cluster
 classes.norm <- data.frame(matrix(NA, nrow = nrow(classes), ncol = ncol(classes) - 1))
