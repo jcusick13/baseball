@@ -5,4 +5,4 @@ Analysis of data from the 2016 MLB season to determine which teams have the most
 All star rosters were downloaded from [Baseball Reference](https://www.baseball-reference.com/allstar/2016-allstar-game.shtml) for the 2015 and 2016 games and then saved as csv files.
 
 
-[1] [Darren Glass, “Fair Weather Fans.” The Baseball Research Journal, 32 (2004), 82.](http://cupola.gettysburg.edu/cgi/viewcontent.cgi?article=1000&context=mathfac)
+[1] [Glass, Darren. "Fair-Weather Fans: The Correlation Between Attendance and Winning Percentage." The Baseball Research Journal, 32, 81-84.](http://cupola.gettysburg.edu/cgi/viewcontent.cgi?article=1000&context=mathfac)
