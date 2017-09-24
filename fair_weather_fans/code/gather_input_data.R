@@ -58,11 +58,30 @@ add_team_abbr <- function(df) {
     select(df, -l)
 }
 
-allstar_2015 <- get_allstar_id("2015") %>% add_team_abbr()
+# Count all stars by team
+allstar_2015_ct <- get_allstar_id("2015") %>% 
+    add_team_abbr() %>%
+    group_by(Team) %>%
+    summarize(Count = n())
+
+allstar_2016_ct <- get_allstar_id("2016") %>% 
+    add_team_abbr() %>%
+    group_by(Team) %>%
+    summarize(Count = n())
 
 
-    
+# 3. Combine all star counts with attendance -------
 
+# Counts for home team
+game_data <-
+    left_join(x = game_log, y = allstar_2016_ct, by = c("Home" = "Team")) %>%
+    mutate(AllStarCt_Home = ifelse(is.na(Count), 0, Count)) %>%
+    select(-Count)
+
+game_data <-
+    left_join(x = game_data, y = allstar_2016_ct, by = c("Visitor" = "Team")) %>%
+    mutate(AllStarCt_Away = ifelse(is.na(Count), 0, Count)) %>%
+    select(-Count)
 
 
 
