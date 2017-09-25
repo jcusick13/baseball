@@ -78,10 +78,104 @@ game_data <-
     mutate(AllStarCt_Home = ifelse(is.na(Count), 0, Count)) %>%
     select(-Count)
 
+# Add away team
 game_data <-
     left_join(x = game_data, y = allstar_2016_ct, by = c("Visitor" = "Team")) %>%
     mutate(AllStarCt_Away = ifelse(is.na(Count), 0, Count)) %>%
     select(-Count)
 
 
+# 4. Tally running win percentage ------
 
+# Create new table to store data
+running_wins <- tibble(GameNum = rep(NA, 2 * nrow(game_data)), 
+                       Team = rep(NA, 2 * nrow(game_data)),
+                       Wins = rep(NA, 2 * nrow(game_data)),
+                       WinPct = rep(NA, 2 * nrow(game_data)))
+           
+
+update_home_wins <- function(df_wins, df_game, row) {
+    # Updates df_wins table with the knowledge that the home team 
+    # won the game in df_game[row]. Will add data to two new rows in
+    # df_wins and return the edited table.
+    
+        # Update output table for the winning home team
+        df_wins$GameNum[row] <- df_game$HomeGameNum[row]
+        df_wins$Team[row] <- df_game$Home[row]
+        
+        if (df_game$HomeGameNum[row] == 1) {
+            df_wins$Wins[row] <- 1
+        }
+        else {
+            prev_game_tibble <- filter(df_wins, Team == df_wins$Team[row] &
+                                                GameNum == df_wins$GameNum[row] - 1)
+            df_wins$Wins[row] <- prev_game_tibble$Wins
+        }
+        df_wins$WinPct[row] <- df_wins$Wins[row] / df_wins$GameNum[row]
+        
+        # Update output table for the losing visiting team
+        df_wins$GameNum[row + 1] <- df_game$VisitorGameNum[row]
+        df_wins$Team[row + 1] <- df_game$Visitor[row]
+        
+        if (df_game$VisitorGameNum[row] == 1) {
+            df_wins$Wins[row + 1] <- 0
+        }
+        else {
+            prev_game_tibble <- filter(df_wins, Team == df_wins$Team[row + 1] &
+                                                GameNum == df_wins$GameNum[row + 1] - 1)
+            df_wins$Wins[row + 1] <- prev_game_tibble$Wins
+        }
+        df_wins$WinPct[row + 1] <- df_wins$Wins[row + 1] / df_wins$Wins[row + 1]
+        
+        # Return final table
+        df_wins
+}
+
+update_visitor_wins <- function(df_wins, df_game, row) {
+    # Updates df_wins table with the knowledge that the visiting team 
+    # won the game in df_game[row]. Will add data to two new rows in
+    # df_wins and return the edited table.
+    
+    # Update output table for the winning visiting team
+    df_wins$GameNum[row] <- df_game$VisitorGameNum[row]
+    df_wins$Team[row] <- df_game$Visitor[row]
+    
+    if (df_game$VisitorGameNum[row] == 1) {
+        df_wins$Wins[row] <- 1
+    }
+    else {
+        prev_game_tibble <- filter(df_wins, Team == df_wins$Team[row] &
+                                       GameNum == df_wins$GameNum[row] - 1)
+        df_wins$Wins[row] <- prev_game_tibble$Wins
+    }
+    df_wins$WinPct[row] <- df_wins$Wins[row] / df_wins$GameNum[row]
+    
+    # Update output table for the losing visiting team
+    df_wins$GameNum[row + 1] <- df_game$HomeGameNum[row]
+    df_wins$Team[row + 1] <- df_game$Home[row]
+    
+    if (df_game$HomeGameNum[row] == 1) {
+        df_wins$Wins[row + 1] <- 0
+    }
+    else {
+        prev_game_tibble <- filter(df_wins, Team == df_wins$Team[row + 1] &
+                                       GameNum == df_wins$GameNum[row + 1] - 1)
+        df_wins$Wins[row + 1] <- prev_game_tibble$Wins
+    }
+    df_wins$WinPct[row + 1] <- df_wins$Wins[row + 1] / df_wins$Wins[row + 1]
+    
+    # Return final table
+    df_wins
+}
+
+
+for (i in 1:10) {
+    if (game_data$HomeScore[i] > game_data$VisitorScore[i]) {
+        running_wins <- update_home_wins(running_wins, game_data, i)
+    }
+    else {
+        running_wins <- update_visitor_wins(running_wins, game_data, i)
+    }
+}
+    
+running_wins <- update_home_wins(running_wins, game_data, 1)
