@@ -79,10 +79,10 @@ allstar_2016_ct <- get_allstar_id("2016") %>%
 #
 
 # Create new table to store data
-running_wins <- tibble(GameNum = rep(NA, 2 * nrow(game_data)), 
-                       Team = rep(NA, 2 * nrow(game_data)),
-                       Wins = rep(NA, 2 * nrow(game_data)),
-                       WinPct = rep(NA, 2 * nrow(game_data)))
+running_wins <- tibble(GameNum = rep(NA, 2 * nrow(game_log)), 
+                       Team = rep(NA, 2 * nrow(game_log)),
+                       Wins = rep(NA, 2 * nrow(game_log)),
+                       WinPct = rep(NA, 2 * nrow(game_log)))
            
 
 update_home_wins <- function(wins_tbl, game_data, row) {
@@ -160,12 +160,12 @@ update_visitor_wins <- function(wins_tbl, game_data, row) {
 }
 
 # Build table of running win percentage across season
-for (i in 1:nrow(game_data)) {
-    if (game_data$HomeScore[i] > game_data$VisitorScore[i]) {
-        running_wins <- update_home_wins(running_wins, game_data, i)
+for (i in 1:nrow(game_log)) {
+    if (game_log$HomeScore[i] > game_log$VisitorScore[i]) {
+        running_wins <- update_home_wins(running_wins, game_log, i)
     }
     else {
-        running_wins <- update_visitor_wins(running_wins, game_data, i)
+        running_wins <- update_visitor_wins(running_wins, game_log, i)
     }
 }
 
@@ -206,3 +206,6 @@ game_data <-
     # Final column clean up
     select(-VisitorGameNum, -HomeGameNum, -VisitorScore, -HomeScore) %>%
     replace_na(list(HomeWinPct = 0, VisitorWinPct = 0))
+
+# Save dataset for later analysis
+write_csv(game_data, "./data/game_data.csv")
