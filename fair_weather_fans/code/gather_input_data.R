@@ -3,7 +3,9 @@ library(tidyverse)
 library(stringr)
 library(rvest)
 
-# 1. 2016 attendance counts -----------
+#
+# 1. 2016 attendance counts ----------
+#
 
 # Download raw data from Retrosheet
 f <- "http://www.retrosheet.org/gamelogs/gl2016.zip"
@@ -16,7 +18,9 @@ game_log <- read_csv("data/GL2016.TXT", col_names = FALSE) %>%
            DayNight = X13, Attendance = X18)
 
 
-# 2. Map 2015/2016 All Star rosters to teams ---------
+#
+# 2. Map 2015/2016 All Star rosters to teams ----------
+#
 
 get_allstar_id <- function(year) {
     # Reads Baseball Reference all star game roster file 
@@ -70,22 +74,9 @@ allstar_2016_ct <- get_allstar_id("2016") %>%
     summarize(Count = n())
 
 
-# 3. Combine all star counts with attendance -------
-
-# Counts for home team
-game_data <-
-    left_join(x = game_log, y = allstar_2016_ct, by = c("Home" = "Team")) %>%
-    mutate(AllStarCt_Home = ifelse(is.na(Count), 0, Count)) %>%
-    select(-Count)
-
-# Add away team
-game_data <-
-    left_join(x = game_data, y = allstar_2016_ct, by = c("Visitor" = "Team")) %>%
-    mutate(AllStarCt_Away = ifelse(is.na(Count), 0, Count)) %>%
-    select(-Count)
-
-
-# 4. Tally running win percentage ------
+#
+# 3. Tally running win percentage ----------
+#
 
 # Create new table to store data
 running_wins <- tibble(GameNum = rep(NA, 2 * nrow(game_data)), 
@@ -94,82 +85,82 @@ running_wins <- tibble(GameNum = rep(NA, 2 * nrow(game_data)),
                        WinPct = rep(NA, 2 * nrow(game_data)))
            
 
-update_home_wins <- function(df_wins, df_game, row) {
-    # Updates df_wins table with the knowledge that the home team 
-    # won the game in df_game[row]. Will add data to two new rows in
-    # df_wins and return the edited table.
+update_home_wins <- function(wins_tbl, game_data, row) {
+    # Updates wins_tbl table with the knowledge that the home team 
+    # won the game in game_data[row]. Will add data to two new rows in
+    # wins_tbl and return the edited table.
     
-        # Update output table for the winning home team
-        df_wins$GameNum[row] <- df_game$HomeGameNum[row]
-        df_wins$Team[row] <- df_game$Home[row]
-        
-        if (df_game$HomeGameNum[row] == 1) {
-            df_wins$Wins[row] <- 1
-        }
-        else {
-            prev_game_tibble <- filter(df_wins, Team == df_wins$Team[row] &
-                                                GameNum == df_wins$GameNum[row] - 1)
-            df_wins$Wins[row] <- prev_game_tibble$Wins
-        }
-        df_wins$WinPct[row] <- df_wins$Wins[row] / df_wins$GameNum[row]
-        
-        # Update output table for the losing visiting team
-        df_wins$GameNum[row + 1] <- df_game$VisitorGameNum[row]
-        df_wins$Team[row + 1] <- df_game$Visitor[row]
-        
-        if (df_game$VisitorGameNum[row] == 1) {
-            df_wins$Wins[row + 1] <- 0
-        }
-        else {
-            prev_game_tibble <- filter(df_wins, Team == df_wins$Team[row + 1] &
-                                                GameNum == df_wins$GameNum[row + 1] - 1)
-            df_wins$Wins[row + 1] <- prev_game_tibble$Wins
-        }
-        df_wins$WinPct[row + 1] <- df_wins$Wins[row + 1] / df_wins$Wins[row + 1]
-        
-        # Return final table
-        df_wins
-}
-
-update_visitor_wins <- function(df_wins, df_game, row) {
-    # Updates df_wins table with the knowledge that the visiting team 
-    # won the game in df_game[row]. Will add data to two new rows in
-    # df_wins and return the edited table.
+    # Update output table for the winning home team
+    wins_tbl$GameNum[2 * row - 1] <- game_data$HomeGameNum[row]
+    wins_tbl$Team[2 * row - 1] <- game_data$Home[row]
     
-    # Update output table for the winning visiting team
-    df_wins$GameNum[row] <- df_game$VisitorGameNum[row]
-    df_wins$Team[row] <- df_game$Visitor[row]
-    
-    if (df_game$VisitorGameNum[row] == 1) {
-        df_wins$Wins[row] <- 1
+    if (game_data$HomeGameNum[row] == 1) {
+        wins_tbl$Wins[2 * row - 1] <- 1
     }
     else {
-        prev_game_tibble <- filter(df_wins, Team == df_wins$Team[row] &
-                                       GameNum == df_wins$GameNum[row] - 1)
-        df_wins$Wins[row] <- prev_game_tibble$Wins
+        prev_game_tibble <- filter(wins_tbl, Team == wins_tbl$Team[2 * row - 1] &
+                                       GameNum == wins_tbl$GameNum[2 * row - 1] - 1)
+        wins_tbl$Wins[2 * row - 1] <- prev_game_tibble$Wins + 1
     }
-    df_wins$WinPct[row] <- df_wins$Wins[row] / df_wins$GameNum[row]
+    wins_tbl$WinPct[2 * row - 1] <- wins_tbl$Wins[2 * row - 1] / wins_tbl$GameNum[2 * row - 1]
     
     # Update output table for the losing visiting team
-    df_wins$GameNum[row + 1] <- df_game$HomeGameNum[row]
-    df_wins$Team[row + 1] <- df_game$Home[row]
+    wins_tbl$GameNum[2 * row] <- game_data$VisitorGameNum[row]
+    wins_tbl$Team[2 * row] <- game_data$Visitor[row]
     
-    if (df_game$HomeGameNum[row] == 1) {
-        df_wins$Wins[row + 1] <- 0
+    if (game_data$VisitorGameNum[row] == 1) {
+        wins_tbl$Wins[2 * row] <- 0
     }
     else {
-        prev_game_tibble <- filter(df_wins, Team == df_wins$Team[row + 1] &
-                                       GameNum == df_wins$GameNum[row + 1] - 1)
-        df_wins$Wins[row + 1] <- prev_game_tibble$Wins
+        prev_game_tibble <- filter(wins_tbl, Team == wins_tbl$Team[2 * row] &
+                                       GameNum == wins_tbl$GameNum[2 * row] - 1)
+        wins_tbl$Wins[2 * row] <- prev_game_tibble$Wins
     }
-    df_wins$WinPct[row + 1] <- df_wins$Wins[row + 1] / df_wins$Wins[row + 1]
+    wins_tbl$WinPct[2 * row] <- wins_tbl$Wins[2 * row] / wins_tbl$GameNum[2 * row]
     
     # Return final table
-    df_wins
+    wins_tbl
 }
 
+update_visitor_wins <- function(wins_tbl, game_data, row) {
+    # Updates wins_tbl table with the knowledge that the visiting team 
+    # won the game in game_data[row]. Will add data to two new rows in
+    # wins_tbl and return the edited table.
+    
+    # Update output table for the winning visiting team
+    wins_tbl$GameNum[2 * row - 1] <- game_data$VisitorGameNum[row]
+    wins_tbl$Team[2 * row - 1] <- game_data$Visitor[row]
+    
+    if (game_data$VisitorGameNum[row] == 1) {
+        wins_tbl$Wins[2 * row - 1] <- 1
+    }
+    else {
+        prev_game_tibble <- filter(wins_tbl, Team == wins_tbl$Team[2 * row - 1] &
+                                       GameNum == wins_tbl$GameNum[2 * row - 1] - 1)
+        wins_tbl$Wins[2 * row - 1] <- prev_game_tibble$Wins + 1
+    }
+    wins_tbl$WinPct[2 * row - 1] <- wins_tbl$Wins[2 * row - 1] / wins_tbl$GameNum[2 * row - 1]
+    
+    # Update output table for the losing visiting team
+    wins_tbl$GameNum[2 * row] <- game_data$HomeGameNum[row]
+    wins_tbl$Team[2 * row] <- game_data$Home[row]
+    
+    if (game_data$HomeGameNum[row] == 1) {
+        wins_tbl$Wins[2 * row] <- 0
+    }
+    else {
+        prev_game_tibble <- filter(wins_tbl, Team == wins_tbl$Team[2 * row] &
+                                       GameNum == wins_tbl$GameNum[2 * row] - 1)
+        wins_tbl$Wins[2 * row] <- prev_game_tibble$Wins
+    }
+    wins_tbl$WinPct[2 * row] <- wins_tbl$Wins[2 * row] / wins_tbl$GameNum[2 * row]
+    
+    # Return final table
+    wins_tbl
+}
 
-for (i in 1:10) {
+# Build table of running win percentage across season
+for (i in 1:nrow(game_data)) {
     if (game_data$HomeScore[i] > game_data$VisitorScore[i]) {
         running_wins <- update_home_wins(running_wins, game_data, i)
     }
@@ -177,5 +168,41 @@ for (i in 1:10) {
         running_wins <- update_visitor_wins(running_wins, game_data, i)
     }
 }
-    
-running_wins <- update_home_wins(running_wins, game_data, 1)
+
+# Increase the game counts by 1 so they represent the win percentage
+# going into that game number
+running_wins$GameNum <- running_wins$GameNum + 1
+
+
+#
+# 4. Create final table for analysis ----------
+# 
+
+# Add all star counts for home team
+game_data <-
+    left_join(x = game_log, y = allstar_2016_ct, by = c("Home" = "Team")) %>%
+    mutate(HomeAllStar = ifelse(is.na(Count), 0, Count)) %>%
+    select(-Count)
+
+# Add all star counts for away team
+game_data <-
+    left_join(x = game_data, y = allstar_2016_ct, by = c("Visitor" = "Team")) %>%
+    mutate(VisitorAllStar = ifelse(is.na(Count), 0, Count)) %>%
+    select(-Count)
+
+# Add running win percentage for home team
+game_data <-
+    left_join(x = game_data, y = running_wins, by = c("Home" = "Team", 
+                                                      "HomeGameNum" = "GameNum")) %>%
+    mutate(HomeWinPct = WinPct) %>%
+    select(-Wins, -WinPct)
+
+# Add running win percentage for away team
+game_data <-
+    left_join(x = game_data, y = running_wins, by = c("Visitor" = "Team",
+                                                      "VisitorGameNum" = "GameNum")) %>%
+    mutate(VisitorWinPct = WinPct) %>%
+    select(-Wins, -WinPct) %>%
+    # Final column clean up
+    select(-VisitorGameNum, -HomeGameNum, -VisitorScore, -HomeScore) %>%
+    replace_na(list(HomeWinPct = 0, VisitorWinPct = 0))
