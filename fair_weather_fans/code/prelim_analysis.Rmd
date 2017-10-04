@@ -1,0 +1,70 @@
+---
+title: "Fair Weather Fans Analysis"
+author: "Jon Cusick"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+dat <- read_csv("data/game_data.csv")
+```
+
+### Weekend vs. weekday games
+One of influencing variables to consider on the outcome of attendance is weekday vs. weekend games. It seems fairly obvious that attendance is higher during games on the weekend and this should be something to control for. However, an important question to consider is if Friday night games should be modeled as weekend or weekday games. When just looking at average attendance counts, Friday night games fall right in the middle of weekday and weekend attendances, seemingly at home in either grouping.
+
+```{r orig-plot, out.width = "65%"}
+week <- select(dat, DayofWeek, Attendance) %>%
+    filter(DayofWeek != "Fri") %>%
+    mutate(Type = ifelse(DayofWeek %in% c("Sat", "Sun"), "Sat-Sun", "Mon-Thu")) %>%
+    group_by(Type) %>%
+    summarize(AvgAtt = mean(Attendance))
+
+frinight <- select(dat, DayofWeek, DayNight, Attendance) %>%
+    filter(DayofWeek == "Fri" & DayNight == "N") %>%
+    mutate(Type = "Friday") %>%
+    group_by(Type) %>%
+    summarize(AvgAtt = mean(Attendance))
+
+att <- bind_rows(frinight, week)
+ggplot(att, aes(x = Type, y = AvgAtt)) +
+    geom_col(fill = "dodgerblue4") +
+    coord_cartesian(ylim = c(20000, 35000)) +
+    labs(x = "", y = "", caption = "Figure 1. Average attendance by day of the week")
+```
+
+To come to a more definitive answer a multivariate regression was run, regressing attendance by each of the three day type groups. Bootstrap resampling was first used to ensure that the observation count for Friday night and Saturday-Sunday games was equivalent to that of Monday-Thursday games. The regression coefficient summary table can be seen below:
+
+```{r friday_group, message = TRUE}
+att_week <- filter(dat, DayofWeek %in% c("Mon", "Tue", "Wed", "Thu") |
+                        (DayofWeek == "Fri" & DayNight == "D"))
+orig_size <- length(att_week$Attendance)
+att_fri <- filter(dat, DayofWeek == "Fri" & DayNight == "N") %>% select(Attendance)
+att_wknd <- filter(dat, DayofWeek %in% c("Sat", "Sun")) %>% select(Attendance)
+
+# Bootstrap Friday night games
+orig_fri <- att_fri$Attendance
+att_fri_resample <- sample(orig_fri, size = orig_size, replace = TRUE)
+
+# Bootstrap Sat-Sun games
+orig_wknd <- att_wknd$Attendance
+att_wknd_resample <- sample(orig_wknd, size = orig_size, replace = TRUE)
+
+# Create data frame of resampled data from each of the three groups, reformat for regression
+resampled_dat <- data.frame("Friday" = att_fri_resample,
+                            "SatSun" = att_wknd_resample,
+                            "MonThurs" = att_week$Attendance) %>%
+    gather(`Friday`, `SatSun`, `MonThurs`, 
+           key = "DayType", value = "Attendance", factor_key = TRUE)
+
+# Multivariate regression, using Friday night attendance as intercept
+summary(lm(Attendance ~ DayType, data = resampled_dat))$coef
+```
+
+By designating the Friday night attendance as the model's intercept, we can now use the coeffients from the other two groups to compare how similiar they are to Friday night and determine which, if any, group Friday night games should be lumped into. The estimate for the intercept is simply the average attendance of Friday night games. It's p-value can be ignored since `Pr(>|t|)` is testing the null hypothesis $H_0: \mu = 0$. We can be quite sure that the average attendance of baseball games on a Friday night isn't zero, even without a regression model!
+
+The coefficients for the other two groups (SatSun, MonThurs) are interpreted as a comparison to the Friday night group. It should be unsuprising that there is a positive coefficient for Saturday-Sunday games, as we expected it to have a higher mean attendance than Friday nights. The opposite effect for weekday games is also unsuprising with a lower mean attendance. However, interpreting the p-values for both of the two groups suggests rejecting the null in both cases and that Friday night attendance is significantly different from attendance at any other time during the week. This implies that Friday night should actually be its own group when controlling for attendance at baseball games using time of the week.
+
