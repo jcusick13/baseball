@@ -10,7 +10,8 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE)
 
 ```{r}
 library(tidyverse)
-dat <- read_csv("data/game_data.csv")
+library(knitr)
+dat <- read_csv("/Users/JonathanCusick/Documents/local/baseball/fair_weather_fans/data/game_data.csv")
 ```
 
 ### Weekend vs. weekday games
@@ -61,10 +62,31 @@ resampled_dat <- data.frame("Friday" = att_fri_resample,
            key = "DayType", value = "Attendance", factor_key = TRUE)
 
 # Multivariate regression, using Friday night attendance as intercept
-summary(lm(Attendance ~ DayType, data = resampled_dat))$coef
+kable(summary(lm(Attendance ~ DayType, data = resampled_dat))$coef)
 ```
 
 By designating the Friday night attendance as the model's intercept, we can now use the coeffients from the other two groups to compare how similiar they are to Friday night and determine which, if any, group Friday night games should be lumped into. The estimate for the intercept is simply the average attendance of Friday night games. It's p-value can be ignored since `Pr(>|t|)` is testing the null hypothesis $H_0: \mu = 0$. We can be quite sure that the average attendance of baseball games on a Friday night isn't zero, even without a regression model!
 
 The coefficients for the other two groups (SatSun, MonThurs) are interpreted as a comparison to the Friday night group. It should be unsuprising that there is a positive coefficient for Saturday-Sunday games, as we expected it to have a higher mean attendance than Friday nights. The opposite effect for weekday games is also unsuprising with a lower mean attendance. However, interpreting the p-values for both of the two groups suggests rejecting the null in both cases and that Friday night attendance is significantly different from attendance at any other time during the week. This implies that Friday night should actually be its own group when controlling for attendance at baseball games using time of the week.
+
+
+### Comparison to Glass' results (1973 - 2002)
+Before running a regression controlling for day of the week and superstar player value, I first wanted to do a brief replication of Glass' results to see how the data from just a single season  differed from his analysis of full seasons over a few decades. When looking at the correlation of a team's average attendance and their average winning percentage over the whole season, the coefficient was quite similar to that found by Glass; he found it to be 0.464 between 1973 and 2002, while it was found to be 0.439 for 2016.
+
+However, when looking at the correlation for each team on a game-by-game basis, the coefficents had a large variability, ranging from 0.513 (Toronto Blue Jays) to -0.549 (Chicago Cubs). The teams with the largest and smallest correlation coefficients are shown below.
+
+```{r Glass replication}
+# Correlation coef for entire league
+team_avg <- group_by(dat, Home) %>% 
+    summarize(AvgAtt = mean(Attendance), WPct = mean(HomeWinPct))
+mlb_cor <- cor(x = team_avg$AvgAtt, y = team_avg$WPct)
+
+# Correlation coef by team
+team_cc <- group_by(dat, Home) %>% 
+    summarize(CorrCoef = cor(Attendance, HomeWinPct)) %>%
+    arrange(desc(CorrCoef))
+
+kable(list(team_cc[1:5,], team_cc[26:30,]))
+```
+
 
