@@ -204,7 +204,7 @@ game_data <-
     mutate(VisitorWinPct = WinPct) %>%
     select(-Wins, -WinPct) %>%
     # Final column clean up
-    select(-VisitorGameNum, -HomeGameNum, -VisitorScore, -HomeScore) %>%
+    select(-VisitorGameNum, -VisitorScore, -HomeScore) %>%
     replace_na(list(HomeWinPct = 0, VisitorWinPct = 0))
 
 # Save dataset for later analysis
