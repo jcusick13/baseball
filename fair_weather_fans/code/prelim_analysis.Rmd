@@ -73,7 +73,7 @@ The coefficients for the other two groups (SatSun, MonThurs) are interpreted as 
 ### Comparison to Glass' results (1973 - 2002)
 Before running a regression controlling for day of the week and superstar player value, I first wanted to do a brief replication of Glass' results to see how the data from just a single season  differed from his analysis of full seasons over a few decades. When looking at the correlation of a team's average attendance and their average winning percentage over the whole season, the coefficient was quite similar to that found by Glass; he found it to be 0.464 between 1973 and 2002, while it was found to be 0.439 for 2016.
 
-However, when looking at the correlation for each team on a game-by-game basis, the coefficents had a large variability, ranging from 0.513 (Toronto Blue Jays) to -0.549 (Chicago Cubs). The teams with the largest and smallest correlation coefficients are shown below.
+However, when looking at the correlation for each team on a game-by-game basis, the coefficents had a large variability, ranging from 0.513 (Toronto Blue Jays) to -0.549 (Chicago Cubs). When using winning percentage as an indicator of attendance within a single season instead of decades, it is clear that there are other factors at work. The teams with the largest and smallest correlation coefficients are shown below.
 
 ```{r Glass replication}
 # Correlation coef for entire league
@@ -86,7 +86,44 @@ team_cc <- group_by(dat, Home) %>%
     summarize(CorrCoef = cor(Attendance, HomeWinPct)) %>%
     arrange(desc(CorrCoef))
 
+display_cc <- data
 kable(list(team_cc[1:5,], team_cc[26:30,]))
+
+# Correlation coef by team after 20% of games 
+team_cc_20 <- filter(dat, HomeGameNum > 33) %>%
+    group_by(Home) %>% 
+    summarize(CorrCoef = cor(Attendance, HomeWinPct)) %>%
+    arrange(desc(CorrCoef))
 ```
 
+
+
+### Accounting for other factors
+The crux of this study was to look at what other factors influence attendance on a game-by-game basis throughout a regular season.
+
+```{r initial_regression}
+library(broom)
+
+# Create day type factor variable
+dat <- mutate(dat, DayTypeChr = ifelse(DayofWeek %in% c("Sat", "Sun"), "Weekend", "Weekday"))
+
+team_fit <- dat %>%
+    mutate(DayType = as.factor(DayTypeChr)) %>%
+    group_by(Home) %>%
+    do(model = lm(Attendance ~ HomeWinPct + VisitorAllStar + DayType, data = .))
+
+kable(filter(team_fit, Home == "BOS") %>% tidy(model))
+
+```
+
+
+Rank each team by their controlled win percent correlation
+```{r team_ranking}
+
+res <- team_fit %>% tidy(model) %>%
+    filter(term == "HomeWinPct") %>%
+    select(Home, estimate, p.value) %>%
+    arrange(desc(estimate)) %>%
+    filter(p.value <= 0.05)
+```
 
